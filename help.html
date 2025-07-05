@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IINA Web Remote - Setup & Help</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f7;
+            line-height: 1.6;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1d1d1f;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        h2 {
+            color: #1d1d1f;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 8px;
+        }
+        .subtitle {
+            color: #86868b;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status.connected {
+            background: #d1f2eb;
+            color: #0e5e3e;
+            border: 1px solid #a3e4d7;
+        }
+        .status.disconnected {
+            background: #fadbd8;
+            color: #922b21;
+            border: 1px solid #f1948a;
+        }
+        .status.connecting {
+            background: #fef9e7;
+            color: #7d6608;
+            border: 1px solid #f7dc6f;
+        }
+        .connection-info {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .connection-info h3 {
+            margin-top: 0;
+            color: #1565c0;
+        }
+        .connection-url {
+            font-family: 'SF Mono', Monaco, monospace;
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            margin: 10px 0;
+            word-break: break-all;
+        }
+        .setup-steps {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .setup-steps ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .setup-steps li {
+            margin: 10px 0;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            background: #007aff;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover:not(:disabled) {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .test-section {
+            border-top: 2px solid #f0f0f0;
+            margin-top: 30px;
+            padding-top: 30px;
+        }
+        .media-info {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .log {
+            background: #1e1e1e;
+            color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 13px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .qr-placeholder {
+            width: 150px;
+            height: 150px;
+            background: #f0f0f0;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 14px;
+            text-align: center;
+            margin: 20px auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 IINA Web Remote</h1>
+        <div class="subtitle">Control your IINA player remotely from any device on your network</div>
+        
+        <div id="status" class="status connecting">
+            <span>🔄</span> Checking server status...
+        </div>
+        
+        <div class="connection-info">
+            <h3>📡 Connection Information</h3>
+            <p><strong>Server Status:</strong> <span id="serverStatus">Checking...</span></p>
+            <p><strong>Port:</strong> <span id="serverPort">10010</span></p>
+            <p><strong>Local Access URL:</strong></p>
+            <div class="connection-url" id="localUrl">http://localhost:8080</div>
+            <p><strong>Network Access URL:</strong></p>
+            <div class="connection-url" id="networkUrl">Getting network IP...</div>
+            
+            <div class="qr-placeholder">
+                QR Code<br>
+                (Future Enhancement)
+            </div>
+        </div>
+        
+        <h2>🚀 Quick Setup</h2>
+        <div class="setup-steps">
+            <ol>
+                <li><strong>Ensure IINA Web Remote is running:</strong> Check that the server status above shows "Connected"</li>
+                <li><strong>Connect your device to the same Wi-Fi network</strong> as your Mac</li>
+                <li><strong>Open the web interface:</strong> Use the Network Access URL above on your phone, tablet, or another computer</li>
+                <li><strong>Start controlling:</strong> Use the web interface to control IINA playback remotely</li>
+            </ol>
+        </div>
+        
+        <div class="info">
+            <strong>💡 Tip:</strong> Bookmark the Network Access URL on your mobile device for quick access to the remote control.
+        </div>
+        
+        <h2>🔧 Troubleshooting</h2>
+        
+        <div class="warning">
+            <strong>⚠️ Server Not Starting?</strong><br>
+            If port 10010 is already in use by another application, the plugin will automatically try alternative ports (10011-10015). The actual port being used is shown above in the connection information.
+        </div>
+        
+        <div class="setup-steps">
+            <h4>Common Issues:</h4>
+            <ul>
+                <li><strong>Can't connect from other devices:</strong> Ensure your Mac's firewall allows incoming connections on port 10010</li>
+                <li><strong>Web interface won't load:</strong> Make sure both devices are on the same Wi-Fi network</li>
+                <li><strong>Controls not working:</strong> Check that media is loaded in IINA before trying to control playback</li>
+                <li><strong>Connection keeps dropping:</strong> Check your Wi-Fi connection stability</li>
+            </ul>
+        </div>
+        
+        <h2>📱 Supported Features</h2>
+        <div class="setup-steps">
+            <ul>
+                <li>▶️ Play/Pause/Toggle playback</li>
+                <li>⏩ Skip forward/backward (10 seconds)</li>
+                <li>🎯 Seek to specific position</li>
+                <li>⛶ Toggle fullscreen</li>
+                <li>🔊 Volume control and mute</li>
+                <li>📊 Real-time playback status</li>
+                <li>📱 Mobile-optimized interface</li>
+            </ul>
+        </div>
+        
+        <div class="test-section">
+            <h2>🧪 Test Connection</h2>
+            <p>Use the controls below to test the connection to IINA:</p>
+            
+            <div class="controls">
+                <button onclick="sendCommand('play')">▶️ Play</button>
+                <button onclick="sendCommand('pause')">⏸️ Pause</button>
+                <button onclick="sendCommand('toggle-pause')">⏯️ Toggle</button>
+                <button onclick="sendCommand('skip-backward', {amount: -10})">⏪ -10s</button>
+                <button onclick="sendCommand('skip-forward', {amount: 10})">⏩ +10s</button>
+                <button onclick="sendCommand('toggle-fullscreen')">⛶ Fullscreen</button>
+            </div>
+            
+            <div class="media-info" id="mediaInfo">
+                <strong>Media Info:</strong><br>
+                No media loaded
+            </div>
+            
+            <div class="log" id="log">
+                Connecting to WebSocket server...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let mediaStatus = {};
+        
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function updateStatus(status, className, icon = '') {
+            const statusElement = document.getElementById('status');
+            statusElement.innerHTML = `<span>${icon}</span> ${status}`;
+            statusElement.className = `status ${className}`;
+            
+            // Update server status text
+            document.getElementById('serverStatus').textContent = status;
+        }
+        
+        function updateMediaInfo(data) {
+            const mediaInfoElement = document.getElementById('mediaInfo');
+            if (data.hasMedia) {
+                mediaInfoElement.innerHTML = `
+                    <strong>Media Info:</strong><br>
+                    Title: ${data.title}<br>
+                    Duration: ${formatTime(data.duration)}<br>
+                    Position: ${formatTime(data.timePos)}<br>
+                    Status: ${data.paused ? 'Paused' : 'Playing'}
+                `;
+            } else {
+                mediaInfoElement.innerHTML = '<strong>Media Info:</strong><br>No media loaded';
+            }
+        }
+        
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        function sendCommand(type, params = {}) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const command = { type, ...params };
+                ws.send(JSON.stringify(command));
+                log(`Sent command: ${type}`);
+            } else {
+                log('WebSocket not connected');
+            }
+        }
+        
+        function getNetworkIP() {
+            // The plugin will provide the actual network IP via the identify command
+            // This is just a fallback placeholder
+            document.getElementById('networkUrl').textContent = 'http://[YOUR-MAC-IP]:8080 (Getting IP...)';
+        }
+        
+        function connect() {
+            log('Attempting to connect to WebSocket server...');
+            updateStatus('Connecting...', 'connecting', '🔄');
+            
+            // Try connecting to different ports
+            tryConnectToPorts();
+        }
+        
+        function tryConnectToPorts() {
+            const ports = [10010, 10011, 10012, 10013, 10014, 10015];
+            let currentPortIndex = 0;
+            
+            function attemptConnection() {
+                if (currentPortIndex >= ports.length) {
+                    log('Failed to connect to any available port');
+                    updateStatus('Connection Failed - No Available Ports', 'disconnected', '❌');
+                    return;
+                }
+                
+                const port = ports[currentPortIndex];
+                log(`Trying to connect to port ${port}...`);
+                
+                ws = new WebSocket(`ws://localhost:${port}`);
+                
+                ws.onopen = function() {
+                    log(`Connected to IINA Web Remote on port ${port}`);
+                    updateStatus('Connected', 'connected', '✅');
+                    
+                    // Update port display
+                    document.getElementById('serverPort').textContent = port.toString();
+                    
+                    // Request server information
+                    sendCommand('identify');
+                    sendCommand('get-status');
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const message = JSON.parse(event.data);
+                        log(`Received: ${message.type}`);
+                        
+                        if (message.type === 'server-info') {
+                            // Update connection information
+                            if (message.data.networkIP) {
+                                const networkUrl = `http://${message.data.networkIP}:8080`;
+                                document.getElementById('networkUrl').textContent = networkUrl;
+                            }
+                            if (message.data.port) {
+                                document.getElementById('serverPort').textContent = message.data.port;
+                            }
+                        } else if (message.type === 'status-update') {
+                            mediaStatus = message.data;
+                            updateMediaInfo(mediaStatus);
+                        }
+                    } catch (error) {
+                        log(`Error parsing message: ${error.message}`);
+                    }
+                };
+                
+                ws.onclose = function() {
+                    log(`Disconnected from port ${port}`);
+                    updateStatus('Disconnected', 'disconnected', '❌');
+                    
+                    // Try to reconnect after 3 seconds
+                    setTimeout(connect, 3000);
+                };
+                
+                ws.onerror = function(error) {
+                    log(`WebSocket error on port ${port}: ${error.message || 'Connection failed'}`);
+                    
+                    // Try next port
+                    currentPortIndex++;
+                    setTimeout(attemptConnection, 500);
+                };
+            }
+            
+            attemptConnection();
+        }
+        
+        // Initialize page
+        function init() {
+            // Get network IP for connection info
+            getNetworkIP();
+            
+            // Start WebSocket connection test
+            connect();
+        }
+        
+        // Start when page loads
+        init();
+    </script>
+</body>
+</html> 

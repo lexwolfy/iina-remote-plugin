@@ -1,0 +1,21 @@
+{
+  "name": "IINA Web Remote",
+  "identifier": "com.iina.webremote",
+  "version": "0.1.0",
+  "description": "Control IINA playback from any device on your local network",
+  "author": {
+    "name": "lexwolfy",
+    "url": "https://github.com/lexwolfy/iina-remote"
+  },
+  "entry": "src/index.js",
+  "permissions": [
+    "network-request",
+    "show-osd",
+    "file-system"
+  ],
+  "allowedDomains": ["*"],
+  "preferencesPage": "help.html",
+  "preferenceDefaults": {},
+  "ghRepo": "lexwolfy/iina-remote-plugin",
+  "ghVersion": 1
+} 
