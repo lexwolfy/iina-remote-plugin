@@ -15,7 +15,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 // Import IINA API modules
-const { console, core, event, mpv, utils, ws } = iina;
+const { core, event, mpv, utils, ws, standaloneWindow, menu } = iina;
+const iinaConsole = iina.console;
 // Global state for connection management
 let activeConnections = new Set();
 let lastStatusBroadcast = 0;
@@ -28,26 +29,93 @@ let serverStarted = false;
  * Initialize the plugin
  */
 function init() {
-    console.log("IINA Web Remote Plugin: Initializing...");
+    iinaConsole.log("IINA Web Remote Plugin: Initializing...");
     // Set up WebSocket server
     setupWebSocket();
     // Set up event listeners
     setupEventListeners();
+    // Set up menu items
+    setupMenu();
     // Show initialization message
     core.osd("IINA Web Remote Plugin: Loaded");
-    console.log("IINA Web Remote Plugin: Initialized successfully");
+    iinaConsole.log("IINA Web Remote Plugin: Initialized successfully");
+    // Set up standalone window message handlers
+    setupWindowMessageHandlers();
     // Log device information
     getDeviceName().then(deviceName => {
-        console.log(`Device name: ${deviceName}`);
+        iinaConsole.log(`Device name: ${deviceName}`);
     }).catch(error => {
-        console.log(`Failed to get device name: ${error}`);
+        iinaConsole.log(`Failed to get device name: ${error}`);
     });
+}
+/**
+ * Set up menu items
+ */
+function setupMenu() {
+    iinaConsole.log("IINA Web Remote: Setting up menu items...");
+    try {
+        menu.addItem(menu.item("Web Remote Connection...", () => {
+            iinaConsole.log("IINA Web Remote: Menu item clicked, opening connection window");
+            showConnectionWindow();
+        }));
+        iinaConsole.log("IINA Web Remote: Menu items added successfully");
+    }
+    catch (error) {
+        iinaConsole.log(`IINA Web Remote: Failed to setup menu: ${error}`);
+    }
+}
+/**
+ * Show the connection window with QR code
+ */
+function showConnectionWindow() {
+    iinaConsole.log("IINA Web Remote: Opening connection window...");
+    try {
+        // Load the connection window HTML file
+        iinaConsole.log("IINA Web Remote: Loading connection.html");
+        standaloneWindow.loadFile("connection.html");
+        // Set window properties
+        iinaConsole.log("IINA Web Remote: Setting window properties");
+        standaloneWindow.setProperty({
+            title: "IINA Web Remote Connection",
+            resizable: true,
+            fullSizeContentView: false,
+            hideTitleBar: false
+        });
+        // Set window size
+        iinaConsole.log("IINA Web Remote: Setting window size to 600x700");
+        standaloneWindow.setFrame(600, 700);
+        // Set up message handlers RIGHT HERE - after loadFile, before open (plugin-online-media pattern)
+        iinaConsole.log("IINA Web Remote: Setting up window message handlers");
+        standaloneWindow.onMessage("requestConnection", () => {
+            iinaConsole.log("=== PLUGIN: Received requestConnection from window ===");
+            sendConnectionInfoToWindow();
+        });
+        standaloneWindow.onMessage("refresh", () => {
+            iinaConsole.log("=== PLUGIN: Received refresh from window ===");
+            sendConnectionInfoToWindow();
+        });
+        iinaConsole.log("IINA Web Remote: Message handlers set up successfully");
+        // Open the window
+        iinaConsole.log("IINA Web Remote: Opening standalone window");
+        standaloneWindow.open();
+        iinaConsole.log("IINA Web Remote: Connection window opened successfully");
+    }
+    catch (error) {
+        iinaConsole.log(`IINA Web Remote: Failed to open connection window: ${error}`);
+    }
+}
+/**
+ * Set up standalone window message handlers (called during initialization)
+ */
+function setupWindowMessageHandlers() {
+    iinaConsole.log("=== PLUGIN: Setting up global window message handlers ===");
+    // Message handlers are now set up directly in showConnectionWindow() following plugin-online-media pattern
 }
 /**
  * Set up WebSocket server for remote control
  */
 function setupWebSocket() {
-    console.log("Setting up WebSocket server...");
+    iinaConsole.log("Setting up WebSocket server...");
     // Try to start server on available port
     tryStartServer(0);
 }
@@ -56,23 +124,23 @@ function setupWebSocket() {
  */
 function tryStartServer(portIndex) {
     if (portIndex >= FALLBACK_PORTS.length) {
-        console.log("Failed to start WebSocket server: no available ports");
+        iinaConsole.log("Failed to start WebSocket server: no available ports");
         core.osd("Web Remote: No available ports");
         return;
     }
     currentPort = FALLBACK_PORTS[portIndex];
-    console.log(`Trying to start WebSocket server on port ${currentPort}...`);
+    iinaConsole.log(`Trying to start WebSocket server on port ${currentPort}...`);
     try {
         // Create WebSocket server on current port
         ws.createServer({ port: currentPort });
         // Handle server state updates
         ws.onStateUpdate((state, error) => {
-            console.log(`WebSocket server state: ${state} (port ${currentPort})`);
+            iinaConsole.log(`WebSocket server state: ${state} (port ${currentPort})`);
             if (state === "failed") {
-                console.log(`WebSocket server failed on port ${currentPort}: ${(error === null || error === void 0 ? void 0 : error.message) || 'Unknown error'}`);
+                iinaConsole.log(`WebSocket server failed on port ${currentPort}: ${(error === null || error === void 0 ? void 0 : error.message) || 'Unknown error'}`);
                 // If server failed and we haven't tried all ports, try next port
                 if (!serverStarted && portIndex + 1 < FALLBACK_PORTS.length) {
-                    console.log(`Trying next port...`);
+                    iinaConsole.log(`Trying next port...`);
                     setTimeout(() => {
                         tryStartServer(portIndex + 1);
                     }, 500);
@@ -83,7 +151,7 @@ function tryStartServer(portIndex) {
             }
             else if (state === "ready") {
                 serverStarted = true;
-                console.log(`WebSocket server is ready on port ${currentPort}`);
+                iinaConsole.log(`WebSocket server is ready on port ${currentPort}`);
                 core.osd(`Web Remote: Server ready on port ${currentPort}`);
                 // Update help page with actual port information
                 updateHelpPagePort();
@@ -91,7 +159,7 @@ function tryStartServer(portIndex) {
         });
         // Handle new connections
         ws.onNewConnection(conn => {
-            console.log(`New WebSocket connection: ${conn}`);
+            iinaConsole.log(`New WebSocket connection: ${conn}`);
             activeConnections.add(conn);
             core.osd("Web Remote: Device connected");
             // Send current status to new connection
@@ -101,10 +169,10 @@ function tryStartServer(portIndex) {
         });
         // Handle connection state changes
         ws.onConnectionStateUpdate((conn, state) => {
-            console.log(`Connection ${conn} state: ${state}`);
+            iinaConsole.log(`Connection ${conn} state: ${state}`);
             if (state === "cancelled" || state === "failed") {
                 activeConnections.delete(conn);
-                console.log(`Connection ${conn} disconnected`);
+                iinaConsole.log(`Connection ${conn} disconnected`);
                 core.osd("Web Remote: Device disconnected");
             }
         });
@@ -112,7 +180,7 @@ function tryStartServer(portIndex) {
         ws.onMessage((conn, message) => {
             try {
                 const command = JSON.parse(message.text());
-                console.log(`Received command from ${conn}:`, JSON.stringify(command));
+                iinaConsole.log(`Received command from ${conn}:`, JSON.stringify(command));
                 handleCommand(command, conn);
                 // Send updated status after command (but not for identify requests)
                 if (command.type !== 'identify') {
@@ -122,15 +190,15 @@ function tryStartServer(portIndex) {
                 }
             }
             catch (error) {
-                console.log(`Failed to parse message from ${conn}: ${error}`);
+                iinaConsole.log(`Failed to parse message from ${conn}: ${error}`);
             }
         });
         // Start the server
         ws.startServer();
-        console.log(`WebSocket server start requested on port ${currentPort}`);
+        iinaConsole.log(`WebSocket server start requested on port ${currentPort}`);
     }
     catch (error) {
-        console.log(`Failed to setup WebSocket server on port ${currentPort}: ${error}`);
+        iinaConsole.log(`Failed to setup WebSocket server on port ${currentPort}: ${error}`);
         // Try next port if available
         if (portIndex + 1 < FALLBACK_PORTS.length) {
             setTimeout(() => {
@@ -148,14 +216,88 @@ function tryStartServer(portIndex) {
 function updateHelpPagePort() {
     // This would ideally communicate with the help page
     // For now, just log the information
-    console.log(`Server started successfully on port ${currentPort}`);
-    // Get local network IP for help page
+    iinaConsole.log(`Server started successfully on port ${currentPort}`);
+    // Get local network IP and update standalone window
     getLocalNetworkIP().then(ip => {
-        console.log(`Local network IP: ${ip}`);
-        console.log(`Web interface should be accessible at: http://${ip}:8080`);
+        iinaConsole.log(`Local network IP: ${ip}`);
+        iinaConsole.log(`Web interface should be accessible at: http://${ip}:8080`);
+        // Update standalone window with connection info (if open)
+        updateStandaloneWindow(ip, currentPort);
     }).catch(error => {
-        console.log(`Failed to get local network IP: ${error}`);
+        iinaConsole.log(`Failed to get local network IP: ${error}`);
     });
+}
+/**
+ * Update standalone window with connection information
+ */
+function updateStandaloneWindow(ip, port) {
+    try {
+        standaloneWindow.postMessage("connection-info", {
+            ip: ip,
+            port: port,
+            status: 'connected'
+        });
+        iinaConsole.log(`Updated standalone window with IP: ${ip}, Port: ${port}`);
+    }
+    catch (error) {
+        iinaConsole.log(`Failed to update standalone window: ${error}`);
+    }
+}
+/**
+ * Send connection info to standalone window
+ */
+function sendConnectionInfoToWindow() {
+    iinaConsole.log(`=== PLUGIN: sendConnectionInfoToWindow called ===`);
+    iinaConsole.log(`=== PLUGIN: serverStarted: ${serverStarted}, currentPort: ${currentPort} ===`);
+    if (serverStarted) {
+        iinaConsole.log("=== PLUGIN: Server is started, getting network IP ===");
+        getLocalNetworkIP().then(ip => {
+            const connectionData = {
+                ip: ip,
+                port: currentPort.toString(),
+                status: 'connected'
+            };
+            iinaConsole.log("=== PLUGIN: Sending connectionUpdate to window:", JSON.stringify(connectionData));
+            try {
+                standaloneWindow.postMessage("connectionUpdate", connectionData);
+                iinaConsole.log("=== PLUGIN: connectionUpdate message sent successfully ===");
+            }
+            catch (error) {
+                iinaConsole.log(`=== PLUGIN: Error sending connectionUpdate: ${error} ===`);
+            }
+        }).catch(error => {
+            iinaConsole.log(`=== PLUGIN: Failed to get network IP: ${error} ===`);
+            const errorData = {
+                ip: null,
+                port: null,
+                status: 'Failed to get network info'
+            };
+            iinaConsole.log("=== PLUGIN: Sending connectionUpdate with error:", JSON.stringify(errorData));
+            try {
+                standaloneWindow.postMessage("connectionUpdate", errorData);
+                iinaConsole.log("=== PLUGIN: connectionUpdate error message sent successfully ===");
+            }
+            catch (error) {
+                iinaConsole.log(`=== PLUGIN: Error sending connectionUpdate error: ${error} ===`);
+            }
+        });
+    }
+    else {
+        iinaConsole.log("=== PLUGIN: Server not started yet ===");
+        const pendingData = {
+            ip: null,
+            port: null,
+            status: 'Server starting...'
+        };
+        iinaConsole.log("=== PLUGIN: Sending connectionUpdate with pending status:", JSON.stringify(pendingData));
+        try {
+            standaloneWindow.postMessage("connectionUpdate", pendingData);
+            iinaConsole.log("=== PLUGIN: connectionUpdate pending message sent successfully ===");
+        }
+        catch (error) {
+            iinaConsole.log(`=== PLUGIN: Error sending connectionUpdate pending: ${error} ===`);
+        }
+    }
 }
 /**
  * Get local network IP address
@@ -163,20 +305,42 @@ function updateHelpPagePort() {
 function getLocalNetworkIP() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            // Use shell command to get local IP
-            const result = yield utils.exec("sh", ["-c", "ifconfig | grep 'inet ' | grep -v '127.0.0.1' | head -1 | awk '{print $2}'"]);
-            if (result.stdout && result.stdout.trim()) {
-                return result.stdout.trim();
+            iinaConsole.log("IINA Web Remote: Attempting to get local IP address...");
+            // Method 1: Use ifconfig with full path
+            iinaConsole.log("IINA Web Remote: Trying ifconfig method...");
+            const result = yield utils.exec("/sbin/ifconfig", []);
+            iinaConsole.log(`IINA Web Remote: ifconfig result status: ${result.status}`);
+            if (result.status === 0 && result.stdout) {
+                iinaConsole.log("IINA Web Remote: ifconfig succeeded, parsing output...");
+                const lines = result.stdout.split('\n');
+                for (const line of lines) {
+                    if (line.includes('inet ') && !line.includes('127.0.0.1') && !line.includes('::1')) {
+                        const match = line.match(/inet (\d+\.\d+\.\d+\.\d+)/);
+                        if (match) {
+                            const ip = match[1];
+                            iinaConsole.log(`IINA Web Remote: Found IP address: ${ip}`);
+                            return ip;
+                        }
+                    }
+                }
             }
-            // Fallback method
-            const result2 = yield utils.exec("ipconfig", ["getifaddr", "en0"]);
-            if (result2.stdout && result2.stdout.trim()) {
-                return result2.stdout.trim();
+            // Method 2: Try a simpler approach
+            iinaConsole.log("IINA Web Remote: Trying scutil method...");
+            const result2 = yield utils.exec("/usr/sbin/scutil", ["--nwi"]);
+            iinaConsole.log(`IINA Web Remote: scutil result status: ${result2.status}`);
+            if (result2.status === 0 && result2.stdout) {
+                iinaConsole.log("IINA Web Remote: scutil output:", result2.stdout.substring(0, 200));
             }
-            throw new Error("Could not determine local IP");
+            // Method 3: Fallback to a common IP
+            iinaConsole.log("IINA Web Remote: Using fallback - checking route...");
+            const result3 = yield utils.exec("/sbin/route", ["-n", "get", "default"]);
+            if (result3.status === 0 && result3.stdout) {
+                iinaConsole.log("IINA Web Remote: route output:", result3.stdout.substring(0, 200));
+            }
+            throw new Error("Could not determine local IP using any method");
         }
         catch (error) {
-            console.log(`Error getting local IP: ${error}`);
+            iinaConsole.log(`IINA Web Remote: Error getting local IP: ${error}`);
             throw error;
         }
     });
@@ -211,7 +375,7 @@ function handleCommand(command, conn) {
                     handleSeekCommand(command.position);
                 }
                 else {
-                    console.log('Invalid seek position:', command.position);
+                    iinaConsole.log('Invalid seek position:', command.position);
                 }
                 break;
             case 'skip-forward':
@@ -231,27 +395,27 @@ function handleCommand(command, conn) {
                     const clampedVolume = Math.max(0, Math.min(100, command.volume));
                     mpv.set('volume', clampedVolume);
                     core.osd(`🔊 Volume: ${clampedVolume}%`);
-                    console.log(`Volume set to: ${clampedVolume}%`);
+                    iinaConsole.log(`Volume set to: ${clampedVolume}%`);
                 }
                 else {
-                    console.log('Invalid volume value:', command.volume);
+                    iinaConsole.log('Invalid volume value:', command.volume);
                 }
                 break;
             case 'toggle-mute':
                 const isMuted = mpv.getFlag('mute');
                 mpv.set('mute', !isMuted);
                 core.osd(isMuted ? "🔊 Unmuted" : "🔇 Muted");
-                console.log(`Mute toggled: ${!isMuted ? 'muted' : 'unmuted'}`);
+                iinaConsole.log(`Mute toggled: ${!isMuted ? 'muted' : 'unmuted'}`);
                 break;
             case 'get-status':
                 // Status will be sent automatically after this function
                 break;
             default:
-                console.log(`Unknown command type: ${command.type}`);
+                iinaConsole.log(`Unknown command type: ${command.type}`);
         }
     }
     catch (error) {
-        console.log(`Error handling command: ${error}`);
+        iinaConsole.log(`Error handling command: ${error}`);
     }
 }
 /**
@@ -262,7 +426,7 @@ function handleSeekCommand(position) {
         const duration = mpv.getNumber('duration') || 0;
         // Validate seek position
         if (duration <= 0) {
-            console.log('Cannot seek: no media loaded or invalid duration');
+            iinaConsole.log('Cannot seek: no media loaded or invalid duration');
             core.osd("⚠️ Cannot seek: no media loaded");
             return;
         }
@@ -273,10 +437,10 @@ function handleSeekCommand(position) {
         const minutes = Math.floor(clampedPosition / 60);
         const seconds = Math.floor(clampedPosition % 60);
         core.osd(`⏩ Seek to ${minutes}:${seconds.toString().padStart(2, '0')}`);
-        console.log(`Seeking to position: ${clampedPosition}s (requested: ${position}s)`);
+        iinaConsole.log(`Seeking to position: ${clampedPosition}s (requested: ${position}s)`);
     }
     catch (error) {
-        console.log(`Error in seek command: ${error}`);
+        iinaConsole.log(`Error in seek command: ${error}`);
         core.osd("⚠️ Seek failed");
     }
 }
@@ -288,7 +452,7 @@ function handleSkipCommand(amount) {
         const currentPos = mpv.getNumber('time-pos') || 0;
         const duration = mpv.getNumber('duration') || 0;
         if (duration <= 0) {
-            console.log('Cannot skip: no media loaded');
+            iinaConsole.log('Cannot skip: no media loaded');
             core.osd("⚠️ Cannot skip: no media loaded");
             return;
         }
@@ -298,10 +462,10 @@ function handleSkipCommand(amount) {
         mpv.set('time-pos', newPosition);
         const direction = amount > 0 ? '+' : '';
         core.osd(`${amount > 0 ? '⏩' : '⏪'} Skip ${direction}${amount}s`);
-        console.log(`Skipping ${amount}s from ${currentPos}s to ${newPosition}s`);
+        iinaConsole.log(`Skipping ${amount}s from ${currentPos}s to ${newPosition}s`);
     }
     catch (error) {
-        console.log(`Error in skip command: ${error}`);
+        iinaConsole.log(`Error in skip command: ${error}`);
         core.osd("⚠️ Skip failed");
     }
 }
@@ -318,7 +482,7 @@ function handleIdentifyRequest(conn) {
                     application: 'IINA',
                     deviceName: deviceName,
                     name: `IINA Web Remote (${deviceName})`,
-                    version: '1.0.0',
+                    version: '1.0.0-beta.3',
                     port: currentPort,
                     networkIP: networkIP,
                     timestamp: Date.now(),
@@ -329,16 +493,16 @@ function handleIdentifyRequest(conn) {
                     ]
                 }
             };
-            console.log(`Sending server info to ${conn}:`, JSON.stringify(response));
+            iinaConsole.log(`Sending server info to ${conn}:`, JSON.stringify(response));
             ws.sendText(conn, JSON.stringify(response)).then(result => {
                 if (result === "no_connection") {
-                    console.log(`Failed to send server info to ${conn}: connection not found`);
+                    iinaConsole.log(`Failed to send server info to ${conn}: connection not found`);
                 }
                 else {
-                    console.log(`Successfully sent server info to ${conn}`);
+                    iinaConsole.log(`Successfully sent server info to ${conn}`);
                 }
             }).catch(error => {
-                console.log(`Error sending server info to ${conn}: ${error}`);
+                iinaConsole.log(`Error sending server info to ${conn}: ${error}`);
             });
         }).catch(error => {
             // Fallback if device info fails
@@ -348,7 +512,7 @@ function handleIdentifyRequest(conn) {
                     application: 'IINA',
                     deviceName: 'Unknown Mac',
                     name: 'IINA Web Remote Server',
-                    version: '1.0.0',
+                    version: '1.0.0-beta.3',
                     port: currentPort,
                     networkIP: 'Unable to determine',
                     timestamp: Date.now(),
@@ -359,18 +523,18 @@ function handleIdentifyRequest(conn) {
                     ]
                 }
             };
-            console.log(`Sending fallback server info to ${conn}:`, JSON.stringify(response));
+            iinaConsole.log(`Sending fallback server info to ${conn}:`, JSON.stringify(response));
             ws.sendText(conn, JSON.stringify(response)).then(result => {
                 if (result === "no_connection") {
-                    console.log(`Failed to send server info to ${conn}: connection not found`);
+                    iinaConsole.log(`Failed to send server info to ${conn}: connection not found`);
                 }
             }).catch(error => {
-                console.log(`Error sending server info to ${conn}: ${error}`);
+                iinaConsole.log(`Error sending server info to ${conn}: ${error}`);
             });
         });
     }
     catch (error) {
-        console.log(`Error handling identification request: ${error}`);
+        iinaConsole.log(`Error handling identification request: ${error}`);
     }
 }
 /**
@@ -385,15 +549,15 @@ function sendStatusUpdate(conn) {
         };
         ws.sendText(conn, JSON.stringify(message)).then(result => {
             if (result === "no_connection") {
-                console.log(`Failed to send status to ${conn}: connection not found`);
+                iinaConsole.log(`Failed to send status to ${conn}: connection not found`);
                 activeConnections.delete(conn);
             }
         }).catch(error => {
-            console.log(`Error sending status to ${conn}: ${error}`);
+            iinaConsole.log(`Error sending status to ${conn}: ${error}`);
         });
     }
     catch (error) {
-        console.log(`Error preparing status update: ${error}`);
+        iinaConsole.log(`Error preparing status update: ${error}`);
     }
 }
 /**
@@ -423,39 +587,39 @@ function broadcastStatusUpdate() {
                     activeConnections.delete(conn);
                 }
             }).catch(error => {
-                console.log(`Error broadcasting to ${conn}: ${error}`);
+                iinaConsole.log(`Error broadcasting to ${conn}: ${error}`);
                 activeConnections.delete(conn);
             });
         });
     }
     catch (error) {
-        console.log(`Error preparing broadcast: ${error}`);
+        iinaConsole.log(`Error preparing broadcast: ${error}`);
     }
 }
 /**
  * Set up event listeners for IINA/MPV events
  */
 function setupEventListeners() {
-    console.log("Setting up event listeners...");
+    iinaConsole.log("Setting up event listeners...");
     // Listen for playback state changes
     event.on('mpv.pause', () => {
-        console.log("Playback paused");
+        iinaConsole.log("Playback paused");
         broadcastStatusUpdate();
     });
     event.on('mpv.unpause', () => {
-        console.log("Playback resumed");
+        iinaConsole.log("Playback resumed");
         broadcastStatusUpdate();
     });
     // Listen for file loaded events
     event.on('mpv.file-loaded', () => {
-        console.log("File loaded");
+        iinaConsole.log("File loaded");
         const status = getCurrentStatus();
         core.osd(`Now playing: ${status.title}`);
         broadcastStatusUpdate();
     });
     // Listen for seek events
     event.on('mpv.seek', () => {
-        console.log("Seek performed");
+        iinaConsole.log("Seek performed");
         broadcastStatusUpdate();
     });
     // Listen for time position changes (throttled)
@@ -464,25 +628,25 @@ function setupEventListeners() {
     });
     // Listen for duration changes
     event.on('mpv.duration', () => {
-        console.log("Duration changed");
+        iinaConsole.log("Duration changed");
         broadcastStatusUpdate();
     });
     // Listen for fullscreen changes
     event.on('mpv.fullscreen', () => {
-        console.log("Fullscreen toggled");
+        iinaConsole.log("Fullscreen toggled");
         broadcastStatusUpdate();
     });
     // Listen for volume changes
     event.on('mpv.volume', () => {
-        console.log("Volume changed");
+        iinaConsole.log("Volume changed");
         broadcastStatusUpdate();
     });
     // Listen for mute changes
     event.on('mpv.mute', () => {
-        console.log("Mute toggled");
+        iinaConsole.log("Mute toggled");
         broadcastStatusUpdate();
     });
-    console.log("Event listeners set up successfully");
+    iinaConsole.log("Event listeners set up successfully");
 }
 /**
  * Get current playback status with enhanced media information
@@ -543,7 +707,7 @@ function getCurrentStatus() {
         };
     }
     catch (error) {
-        console.log(`Failed to get current status: ${error}`);
+        iinaConsole.log(`Failed to get current status: ${error}`);
         return {
             paused: true,
             timePos: 0,
@@ -587,11 +751,11 @@ function formatTime(seconds) {
     }
 }
 /**
- * Log current status to console
+ * Log current status to iinaConsole
  */
 function logCurrentStatus() {
     const status = getCurrentStatus();
-    console.log("Current Status:", JSON.stringify({
+    iinaConsole.log("Current Status:", JSON.stringify({
         title: status.title,
         paused: status.paused,
         timePos: status.timePos,
@@ -611,7 +775,7 @@ function getDeviceName() {
             return result.stdout.trim() || 'IINA Device';
         }
         catch (error) {
-            console.log(`Failed to get device name: ${error}`);
+            iinaConsole.log(`Failed to get device name: ${error}`);
             return 'IINA Device';
         }
     });
@@ -620,9 +784,17 @@ function getDeviceName() {
  * Cleanup when plugin is unloaded
  */
 function cleanup() {
-    console.log("IINA Web Remote Plugin: Cleaning up...");
+    iinaConsole.log("IINA Web Remote Plugin: Cleaning up...");
     activeConnections.clear();
-    console.log("IINA Web Remote Plugin: Cleanup complete");
+    // Close standalone window
+    try {
+        standaloneWindow.close();
+        iinaConsole.log("Standalone window closed");
+    }
+    catch (error) {
+        iinaConsole.log(`Error closing standalone window: ${error}`);
+    }
+    iinaConsole.log("IINA Web Remote Plugin: Cleanup complete");
 }
 // Initialize the plugin
 init();
