@@ -1,7 +1,7 @@
 {
   "name": "IINA Web Remote",
   "identifier": "com.iina.webremote",
-  "version": "1.0.0-beta.3",
+  "version": "1.0.0-beta.4",
   "description": "Control IINA playback from any device on your local network",
   "author": {
     "name": "lexwolfy",
